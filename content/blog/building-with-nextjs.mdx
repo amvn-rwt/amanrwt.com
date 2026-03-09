@@ -1,0 +1,54 @@
+---
+title: "Building a Portfolio That Doesn't Suck"
+slug: "building-with-nextjs"
+description: "Lessons learned from building a developer portfolio with Next.js, MDX, and obsessive attention to detail"
+date: "2025-02-20"
+readingTime: "7 min read"
+tags: ["Next.js", "Design", "Frontend"]
+---
+
+## Why Portfolios Matter
+
+Let's be honest — most developer portfolios are boring. They're either a template with swapped-out names, a blank page with three bullet points, or an over-engineered monstrosity that takes 12 seconds to load. I wanted to build something in the middle: a site that reflects genuine craft without being self-indulgent.
+
+## The Architecture Decision
+
+I went with Next.js App Router and MDX for content. Here's why:
+
+**App Router** gives me the perfect blend of server and client rendering. Static pages where possible, dynamic when needed, and streaming for everything in between. The file-based routing is simple enough that I don't need to think about it.
+
+**MDX** lets me write content in Markdown while embedding React components when I need something interactive. Blog posts are just `.mdx` files in a folder — no CMS, no database, no deploy pipeline for content changes.
+
+## Design Principles I Followed
+
+### 1. Typography Is Everything
+
+I spent more time choosing fonts than writing code. Seriously. The combination of Bricolage Grotesque for headlines, Geist for body copy, and JetBrains Mono for code creates a visual hierarchy that guides the eye naturally. Every font weight, letter-spacing value, and line-height was intentional.
+
+### 2. Color With Purpose
+
+I used the Catppuccin Mocha palette because it's warm without being flashy. The peach accent (`#fab387`) does all the heavy lifting — CTAs, hover states, highlights. Using a single accent color forced me to be deliberate about what deserves attention.
+
+### 3. Animation as Communication
+
+Every animation on this site serves a purpose. Scroll reveals tell you "here's something new." Hover states confirm "yes, this is interactive." The staggered hero entrance creates a sense of narrative — each element arrives in order, telling a story.
+
+> The best interfaces feel like they're responding to you, not performing for you.
+
+## Technical Details Worth Mentioning
+
+The constellation canvas in the hero section runs on `requestAnimationFrame` with particle physics — 60 nodes with connection lines and mouse repulsion. It's dynamically imported to avoid blocking the initial render.
+
+Code blocks use `rehype-pretty-code` with the Catppuccin Mocha theme for Shiki, so syntax highlighting matches the site palette perfectly. No jarring theme switches when you scroll to a code block.
+
+The custom cursor adds a layer of interactivity that most sites skip. It's subtle — a small dot with a trailing ring — but it makes the experience feel more tactile.
+
+## What I'd Do Differently
+
+If I were starting over, I'd set up a component library from day one. By the end, I had enough reusable pieces (scroll reveal, section headers, card layouts) that a proper system would have saved time.
+
+I'd also invest more in performance profiling earlier. The canvas animation was causing some frame drops on older devices before I optimized the particle count and connection distance calculations.
+
+## Ship It
+
+The most important thing about a portfolio is that it exists. Perfect is the enemy of deployed. Build something you're proud of, ship it, and iterate. That's what I did, and you're looking at the result.

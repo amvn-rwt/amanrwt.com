@@ -1,0 +1,31 @@
+---
+title: "DistributeDB"
+slug: "distributedb"
+description: "A distributed key-value store built from scratch in Go with Raft consensus"
+tags: ["Go", "Raft", "gRPC", "Distributed Systems"]
+date: "2024-01-15"
+featured: false
+github: "https://github.com/amanrawat/distributedb"
+live: ""
+---
+
+## Why Build a Database?
+
+Every backend engineer talks about distributed systems, but few have built one from the ground up. I wanted to go beyond the theory — to actually implement consensus, replication, and fault tolerance. DistributeDB is a distributed key-value store that implements the Raft consensus algorithm, built entirely in Go.
+
+## How It Works
+
+The system runs as a cluster of nodes that elect a leader through Raft consensus. All writes go through the leader, which replicates the operation to followers via an append-only log. Once a majority of nodes acknowledge the write, it's committed and applied to the local state machine.
+
+Inter-node communication happens over gRPC, with Protocol Buffers for serialization. The storage engine underneath uses a B+ tree backed by memory-mapped files, giving us both fast reads and durable writes.
+
+## Key Features
+
+- **Raft Consensus** — Leader election, log replication, and membership changes implemented from the Raft paper
+- **Snapshot & Recovery** — Periodic snapshots compact the log; new nodes bootstrap from the latest snapshot
+- **gRPC API** — Clean, typed API for get, put, delete, and range queries with streaming support
+- **Chaos Testing** — Built-in fault injection to simulate network partitions, slow nodes, and disk failures
+
+## Results
+
+The cluster handles 15,000 writes/second on a 3-node setup with p99 latency under 8ms. Under network partition scenarios, the system correctly maintains availability on the majority side and reconciles state after healing.

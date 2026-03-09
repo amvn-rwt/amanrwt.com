@@ -1,0 +1,53 @@
+---
+title: "Why I'm Learning Go as a JS Developer"
+slug: "why-i-love-go"
+description: "My journey switching from TypeScript to Go for backend systems, and why the simplicity won me over"
+date: "2025-01-15"
+readingTime: "5 min read"
+tags: ["Go", "TypeScript", "Backend"]
+---
+
+## The Breaking Point
+
+I've been writing TypeScript for years. It's been my bread and butter — React frontends, Node.js backends, serverless functions. But somewhere around my third rewrite of a "simple" Express middleware that needed seventeen type assertions to work correctly, I started wondering if there was a better way.
+
+That's when I picked up Go. And honestly? It changed how I think about backend engineering.
+
+## What Go Gets Right
+
+### Simplicity as a Feature
+
+Go has 25 keywords. Twenty-five. Compare that to TypeScript's ever-growing surface area of utility types, conditional types, mapped types, template literal types... Go's philosophy is that code should be boring. And I mean that as the highest compliment.
+
+When I read Go code I wrote six months ago, I understand it immediately. The same can't always be said for my TypeScript code, especially when I got clever with generics.
+
+### Concurrency That Makes Sense
+
+Node.js has the event loop. It's powerful, but try explaining `Promise.all` with error handling, cancellation, and backpressure to a junior developer. Now compare that to Go:
+
+```go
+results := make(chan Result, len(urls))
+for _, url := range urls {
+    go func(u string) {
+        results <- fetch(u)
+    }(url)
+}
+```
+
+Goroutines and channels are genuinely intuitive. The first time I wrote a concurrent pipeline in Go, it felt like the language was working *with* me instead of against me.
+
+### The Standard Library
+
+Go's standard library is absurdly good. Need an HTTP server? `net/http`. JSON handling? `encoding/json`. Testing? `testing`. No npm install, no dependency hell, no left-pad incidents. I built an entire REST API with just the standard library and it felt *right*.
+
+## What I Miss from TypeScript
+
+I'd be lying if I said I don't miss anything. TypeScript's type inference is genuinely magical. The way it narrows types through control flow analysis is something Go's type system can't match. And the ecosystem — React, Next.js, the tooling — is unparalleled for frontend work.
+
+But for backend services, especially anything involving concurrency, networking, or systems-level work? Go has become my default choice.
+
+## The Takeaway
+
+Learning Go didn't replace TypeScript in my toolkit — it complemented it. I now reach for Go when building backend services, CLIs, and anything that needs to be fast and concurrent. TypeScript remains my choice for frontends and rapid prototyping.
+
+The real lesson wasn't about languages at all. It was about choosing the right tool for the right job, and being willing to step outside your comfort zone to find it.

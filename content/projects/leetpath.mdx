@@ -1,0 +1,31 @@
+---
+title: "LeetPath"
+slug: "leetpath"
+description: "AI-powered DSA preparation platform with personalized learning paths"
+tags: ["Next.js", "Python", "FastAPI", "PostgreSQL", "OpenAI"]
+date: "2023-09-10"
+featured: false
+github: "https://github.com/amanrawat/leetpath"
+live: "https://leetpath.io"
+---
+
+## The Idea
+
+Most people preparing for coding interviews follow the same lists — Blind 75, NeetCode 150, Striver's sheet. But everyone's gaps are different. LeetPath analyzes your performance across problem categories and builds a personalized roadmap that adapts as you improve.
+
+## Stack Breakdown
+
+The frontend is a Next.js application with a clean, focused UI designed to minimize distraction. The backend is a FastAPI service handling user data, problem metadata, and the recommendation engine. PostgreSQL stores everything, with Elasticsearch powering the problem search and filtering.
+
+The AI layer uses OpenAI's API to generate hints that are calibrated to your current understanding level. Instead of giving away the solution, hints progressively guide you toward the key insight — the way a good mentor would.
+
+## Core Features
+
+- **Adaptive Roadmap** — Analyzes your solve history, time-per-problem, and topic accuracy to generate a custom study plan
+- **Smart Hints** — GPT-powered hints that adapt to your level, from gentle nudges to detailed walkthroughs
+- **Progress Analytics** — Visual dashboard showing topic mastery, consistency streaks, and estimated readiness score
+- **Company Tags** — Filter problems by companies that recently asked them, with frequency data
+
+## Impact
+
+Over 2,000 beta users signed up in the first month. Average session duration is 45 minutes — significantly higher than typical LeetCode sessions. Several users reported receiving offers from top companies after following their personalized paths.

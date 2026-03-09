@@ -1,0 +1,33 @@
+---
+title: "CodeCollab"
+slug: "codecollab"
+description: "Real-time multiplayer IDE with live execution and collaborative editing"
+tags: ["Next.js", "WebSockets", "Redis", "Docker"]
+date: "2024-03-01"
+featured: true
+github: "https://github.com/amanrawat/codecollab"
+live: "https://codecollab.dev"
+---
+
+## The Problem
+
+Remote pair programming is painful. Existing tools either lag behind, lack execution environments, or force you into clunky browser-based editors that feel nothing like your local setup. I wanted to build something that felt native — a real-time collaborative IDE that developers would actually want to use.
+
+## Architecture
+
+CodeCollab is built on a WebSocket-first architecture. The frontend is a Next.js application with Monaco Editor (the same engine behind VS Code) providing the editing experience. Every keystroke is broadcast through a WebSocket gateway built in Go, which handles operational transformation to resolve conflicts between simultaneous edits.
+
+The execution layer runs inside isolated Docker containers spun up per session. When a user hits "Run," their code is sent to a sandboxed container with resource limits — CPU, memory, and network are all capped. Results stream back in real-time through the same WebSocket connection.
+
+Session state is managed through Redis, which handles both the pub/sub layer for real-time sync and caching of active document states. This means if a user disconnects and reconnects, they pick up exactly where they left off.
+
+## Technical Highlights
+
+- **Operational Transformation** — Conflict resolution for concurrent edits, ensuring all participants see a consistent document state
+- **Container Orchestration** — Docker containers with custom resource limits, automatic cleanup, and support for 8 languages
+- **Real-time Cursor Tracking** — Each participant's cursor position and selection is broadcast and rendered with unique colors
+- **Session Persistence** — Redis-backed state management with automatic snapshotting every 30 seconds
+
+## What I Learned
+
+Building CodeCollab taught me more about distributed systems than any textbook. Handling eventual consistency in a real-time editor — where latency is measured in keystrokes — forced me to deeply understand CRDTs and operational transformation. The Docker orchestration layer was another challenge entirely: managing container lifecycles, handling resource exhaustion gracefully, and ensuring security isolation.
