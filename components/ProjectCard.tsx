@@ -16,7 +16,7 @@ export function ProjectCard({ project, index, featured }: ProjectCardProps) {
   return (
     <Link
       href={`/projects/${project.slug}`}
-      className={`project-card group relative block bg-mantle p-8 lg:p-11 transition-all duration-400 ${featured ? "col-span-full" : ""}`}
+      className={`project-card group relative block bg-mantle p-8 lg:p-11 transition-all duration-400 h-full ${featured ? "col-span-full" : ""}`}
       style={{ backgroundColor: hovered ? "#1f1f2e" : "var(--mantle)" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

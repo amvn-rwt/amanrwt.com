@@ -41,7 +41,7 @@ export default function ProjectsPage() {
             style={{ gap: "2px", background: "var(--surface0)" }}
           >
             {projects.map((project, i) => (
-              <ScrollReveal key={project.slug} delay={i * 0.08}>
+              <ScrollReveal key={project.slug} delay={i * 0.08} className="h-full">
                 <ProjectCard
                   project={project}
                   index={i}
