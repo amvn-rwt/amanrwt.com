@@ -22,7 +22,7 @@ export function Footer() {
           </p>
 
           <span className="font-mono text-[11px] tracking-widest text-overlay0">
-            Delhi, India — 2025
+            Delhi, India — {new Date().getFullYear()}
           </span>
         </div>
 

@@ -44,10 +44,10 @@ const experiences = [
 ];
 
 const socials = [
-  { name: "GitHub", handle: "@amanrawat", href: "https://github.com/amanrawat" },
-  { name: "LinkedIn", handle: "/in/amanrawat", href: "https://linkedin.com/in/amanrawat" },
-  { name: "Twitter / X", handle: "@amanrwt", href: "https://x.com/amanrwt" },
-  { name: "Read.cv", handle: "amanrawat", href: "https://read.cv/amanrawat" },
+  { name: "GitHub", handle: "@amvn-rwt", href: "https://github.com/amvn-rwt" },
+  { name: "LinkedIn", handle: "/in/aman-rwt", href: "https://linkedin.com/in/aman-rwt" },
+  { name: "Twitter / X", handle: "@amvn_rwt", href: "https://x.com/amvn_rwt" },
+  // { name: "Read.cv", handle: "aman_rwt", href: "https://read.cv/aman_rwt" },
 ];
 
 const floatingBadges = [
