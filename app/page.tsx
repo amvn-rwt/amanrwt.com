@@ -131,12 +131,6 @@ export default function Home() {
               >
                 View my work →
               </Link>
-              <a
-                href="/cv.pdf"
-                className="font-body text-[13px] font-medium uppercase tracking-[0.06em] text-subtext1 border-b border-surface1 pb-1 hover:border-peach hover:text-peach transition-all duration-300"
-              >
-                Download CV
-              </a>
             </motion.div>
           </div>
 
