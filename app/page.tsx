@@ -21,25 +21,18 @@ const techPills = [
 
 const experiences = [
   {
-    year: "2024",
-    role: "Software Engineer Intern",
-    company: "Google",
-    description: "Worked on Search Infrastructure — building distributed indexing pipelines handling billions of documents. Optimized query latency by 18% through cache-layer redesign.",
-    badge: "FAANG",
-  },
-  {
-    year: "2023",
-    role: "Full Stack Engineer",
-    company: "Stealth Startup",
-    description: "Led frontend architecture for a Series A fintech product. Built real-time dashboards with Next.js and WebSocket streams, serving 50k+ daily active users.",
-    badge: "Series A",
+    year: "2023 - Present",
+    role: "Software Engineer",
+    company: "Cy5 Private Limited",
+    description: "Built a B2B Cloud Security Platform for 25+ clients. Created a scalable and secure cloud security platform using React, TypeScript, and Tailwind CSS.",
+    badge: "Startup",
   },
   {
     year: "2022",
-    role: "Teaching Assistant, DSA",
-    company: "University",
-    description: "Mentored 200+ students in Data Structures & Algorithms. Designed problem sets and conducted weekly lab sessions on graph algorithms and dynamic programming.",
-    badge: "Education",
+    role: "Frontend Engineer",
+    company: "LX Marketing Private Limited",
+    description: "Built a B2B travel agency platform.",
+    badge: "B2B",
   },
 ];
 
