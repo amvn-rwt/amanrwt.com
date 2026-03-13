@@ -41,7 +41,7 @@ export const mdxComponents: MDXComponentsType = {
   ),
   p: (props) => (
     <p
-      className="font-body text-[17px] font-light text-subtext0 leading-[1.9] mb-6"
+      className="font-body text-[16px] font-light text-subtext0 leading-[1.7] mb-5"
       {...props}
     />
   ),
@@ -54,10 +54,10 @@ export const mdxComponents: MDXComponentsType = {
     />
   ),
   ul: (props) => (
-    <ul className="list-disc list-inside mb-6 space-y-2 text-subtext0 font-body text-[17px] font-light leading-[1.9]" {...props} />
+    <ul className="list-disc list-inside mb-6 space-y-2 text-subtext0 font-body text-[16px] font-light leading-[1.6]" {...props} />
   ),
   ol: (props) => (
-    <ol className="list-decimal list-inside mb-6 space-y-2 text-subtext0 font-body text-[17px] font-light leading-[1.9]" {...props} />
+    <ol className="list-decimal list-inside mb-6 space-y-2 text-subtext0 font-body text-[16px] font-light leading-[1.6]" {...props} />
   ),
   blockquote: (props) => (
     <blockquote

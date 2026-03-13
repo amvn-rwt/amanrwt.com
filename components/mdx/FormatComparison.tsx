@@ -5,7 +5,15 @@ import { ComparisonTable } from "./ComparisonTable";
 const headers = ["Aspect", "CSV", "JSON", "Parquet"];
 
 const rows = [
-  { cells: ["File size", "Large", "Larger (keys repeat per row)", "85\u201390% smaller"], winner: 3 },
+  {
+    cells: [
+      "File size",
+      "Large",
+      "Varies (JSON Lines can be compact, but keys still repeat)",
+      "85\u201390% smaller",
+    ],
+    winner: 3,
+  },
   { cells: ["Read speed (analytics)", "Slow \u2014 full scan", "Slow \u2014 parse overhead", "Fast \u2014 column pruning + pushdown"], winner: 3 },
   { cells: ["Write speed", "Fast \u2014 append-friendly", "Fast \u2014 easy to generate", "Slower \u2014 encoding + metadata"], winner: 1 },
   { cells: ["Schema", "None (header row at best)", "Implicit (no enforcement)", "Embedded + enforced"], winner: 3 },

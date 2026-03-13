@@ -23,7 +23,7 @@ const techPills = [
 const experiences = [
   {
     year: "2023 - Present",
-    role: "Software Engineer",
+    role: "Senior Software Engineer",
     company: "Cy5 Private Limited",
     description: "Built a B2B Cloud Security Platform for 25+ clients. Created a scalable and secure cloud security platform using React, TypeScript, and Tailwind CSS.",
     badge: "Startup",

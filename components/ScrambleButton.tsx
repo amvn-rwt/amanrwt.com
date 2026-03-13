@@ -57,17 +57,26 @@ export function ScrambleButton({ href, text, external, showArrow = true }: Scram
   }, []);
 
   const className = [
-    "group relative inline-flex items-center gap-3",
+    "group relative inline-flex items-center gap-3 overflow-hidden",
     "font-mono text-[11px] uppercase tracking-[0.14em]",
     "px-7 py-3.5",
-    "text-text border border-surface1",
+    "border border-surface1",
     "transition-colors duration-500",
-    "hover:border-peach hover:text-peach",
+    "hover:border-peach",
   ].join(" ");
 
   const inner = (
     <>
-      <span className="relative z-10 flex items-center gap-3">
+      <span
+        className="absolute inset-0 bg-peach transition-transform duration-500 origin-left"
+        style={{
+          transform: hovered ? "scaleX(1)" : "scaleX(0)",
+          transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
+        }}
+      />
+      <span className="relative z-10 flex items-center gap-3 transition-colors duration-500"
+        style={{ color: hovered ? "var(--crust)" : "var(--text)" }}
+      >
         <span
           className="transition-opacity duration-300"
           style={{ fontVariantNumeric: "tabular-nums" }}
@@ -96,15 +105,6 @@ export function ScrambleButton({ href, text, external, showArrow = true }: Scram
           </svg>
         )}
       </span>
-
-      {/* bottom accent line */}
-      <span
-        className="absolute bottom-0 left-0 h-px bg-peach transition-all duration-700"
-        style={{
-          width: hovered ? "100%" : "0%",
-          transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
-        }}
-      />
     </>
   );
 

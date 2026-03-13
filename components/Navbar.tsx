@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { ScrambleButton } from "@/components/ScrambleButton";
 
@@ -17,6 +17,47 @@ const links = [
 export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const rafIdRef = useRef<number | null>(null);
+
+  const isBlogRoute = pathname.startsWith("/blog");
+
+  useEffect(() => {
+    if (!isBlogRoute) {
+      setScrollProgress(0);
+      return;
+    }
+
+    const computeProgress = () => {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop;
+      const height = doc.scrollHeight - doc.clientHeight;
+      if (height <= 0) return 0;
+      return Math.min(100, Math.max(0, (scrollTop / height) * 100));
+    };
+
+    const handleScroll = () => {
+      if (rafIdRef.current != null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      rafIdRef.current = requestAnimationFrame(() => {
+        setScrollProgress(computeProgress());
+      });
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      if (rafIdRef.current != null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [isBlogRoute]);
 
   const isActive = (href: string) => {
     if (href.startsWith("/#")) return pathname === "/";
@@ -78,6 +119,19 @@ export function Navbar() {
           >
             Let's talk
           </a>
+        </div>
+      )}
+      {isBlogRoute && (
+        <div className="fixed left-0 right-0 top-[69px] z-200 h-[2px] bg-surface0/60 overflow-hidden">
+          <div
+            className="h-full rounded-r-full"
+            style={{
+              width: `${scrollProgress}%`,
+              background:
+                "linear-gradient(90deg, var(--peach), var(--mauve), var(--blue), var(--teal))",
+              transition: "width 220ms cubic-bezier(0.23, 1, 0.32, 1)",
+            }}
+          />
         </div>
       )}
     </>

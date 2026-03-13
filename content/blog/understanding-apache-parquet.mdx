@@ -33,7 +33,7 @@ But it's a *very* clever way.
 
 Unlike CSV or JSON, which store data row by row, Parquet stores data **column by column**. This single design decision is responsible for everything that makes Parquet powerful: the compression ratios, the query performance, the reason it's become the default format in nearly every modern data stack.
 
-Parquet was created in 2013 by engineers at <Tooltip term="Twitter (now X) co-created Parquet to handle their massive internal analytics workloads more efficiently." link="https://blog.twitter.com/engineering">Twitter</Tooltip> and <Tooltip term="Cloudera is a data platform company that was heavily involved in the Hadoop ecosystem. They co-created Parquet with Twitter." link="https://www.cloudera.com/">Cloudera</Tooltip>, inspired by Google's <Tooltip term="A columnar storage format described in a 2010 Google research paper. Parquet implements many of Dremel's ideas in an open-source format." link="https://research.google/pubs/dremel-interactive-analysis-of-web-scale-datasets/">Dremel paper</Tooltip>. It was donated to the <Tooltip term="The Apache Software Foundation is a non-profit that supports open-source projects. Apache governance ensures vendor-neutral development." link="https://www.apache.org/">Apache Software Foundation</Tooltip> and is now one of the most widely adopted data formats in existence.
+Parquet was created in 2013 by engineers at <Tooltip term="Twitter (now X) co-created Parquet to handle their massive internal analytics workloads more efficiently." link="https://blog.twitter.com/engineering">Twitter</Tooltip> and <Tooltip term="Cloudera is a data platform company that was heavily involved in the Hadoop ecosystem. They co-created Parquet with Twitter." link="https://www.cloudera.com/">Cloudera</Tooltip>. Its nested data model borrows heavily from Google's <Tooltip term="A columnar storage format described in a 2010 Google research paper. Parquet implements many of Dremel's ideas in an open-source format." link="https://research.google/pubs/dremel-interactive-analysis-of-web-scale-datasets/">Dremel paper</Tooltip>, and its columnar layout stands on the shoulders of earlier systems like <Tooltip term="A research column-store database that heavily influenced modern analytical databases and file formats." link="https://db.csail.mit.edu/projects/cstore/">C‑Store</Tooltip>. It was donated to the <Tooltip term="The Apache Software Foundation is a non-profit that supports open-source projects. Apache governance ensures vendor-neutral development." link="https://www.apache.org/">Apache Software Foundation</Tooltip> and is now one of the most widely adopted data formats in existence.
 
 Every major tool speaks Parquet: <Tooltip term="A unified analytics engine for large-scale data processing, supporting SQL, streaming, and machine learning workloads." link="https://spark.apache.org/">Apache Spark</Tooltip>, <Tooltip term="AWS's serverless query service that lets you analyze data in S3 using standard SQL — no infrastructure to manage." link="https://aws.amazon.com/athena/">AWS Athena</Tooltip>, <Tooltip term="Google's serverless, multi-cloud data warehouse. Natively reads and writes Parquet." link="https://cloud.google.com/bigquery">BigQuery</Tooltip>, <Tooltip term="A fast, in-process analytical database. Reads Parquet files extremely efficiently — often faster than specialized databases." link="https://duckdb.org/">DuckDB</Tooltip>, <Tooltip term="Python's go-to data manipulation library. pandas.read_parquet() is one of the fastest ways to load structured data." link="https://pandas.pydata.org/">Pandas</Tooltip>. It's the lingua franca of data engineering.
 
@@ -51,7 +51,7 @@ In a row-oriented format like CSV, data for each record is stored together. If y
 
 But what if you want the average age of all users? In a row-oriented format, the engine has to read every row — including the Name and City columns it doesn't care about. For 4 rows, who cares. For 400 million rows with 50 columns? That's a lot of wasted I/O.
 
-Column-oriented storage flips the model. All ages are stored contiguously. A query like `SELECT AVG(age)` reads *only* the age column. The Name, City, and every other column stays on disk, untouched. This is why <Tooltip term="Online Analytical Processing — workloads that involve scanning large volumes of data for aggregations, reports, and trend analysis. Think dashboards and BI tools." link="https://en.wikipedia.org/wiki/Online_analytical_processing">OLAP</Tooltip> tools and data lakes use columnar formats like Parquet.
+Column-oriented storage flips the model. All ages are stored contiguously. A query like `SELECT AVG(age)` reads *only* the age column. The Name, City, and every other column stays on disk, untouched. This is why <Tooltip term="Online Analytical Processing — workloads that involve scanning large volumes of data for aggregations, reports, and trend analysis. Think dashboards and BI tools." link="https://en.wikipedia.org/wiki/Online_analytical_processing">OLAP</Tooltip> tools and data lakes use columnar formats like Parquet. The trade-off is important: Parquet is phenomenal for scans across many rows, but relatively poor at fetching a single row by primary key because that row is spread across many column chunks.
 
 > The difference isn't subtle. On wide tables with hundreds of columns, column pruning alone can reduce I/O by 95%+.
 
@@ -59,7 +59,7 @@ Column-oriented storage flips the model. All ages are stored contiguously. A que
 
 ## Anatomy of a Parquet File
 
-A Parquet file isn't just a blob of column data. It has a carefully designed internal structure that enables all the performance tricks we'll talk about. Hover over each layer to see what it does:
+When I first cracked open one of those RDS snapshot exports in a Parquet viewer, what surprised me most was how *structured* the file layout is compared to a flat CSV dump. A Parquet file isn't just a blob of column data. It has a carefully designed internal structure that enables all the performance tricks we'll talk about. Hover over each layer to see what it does:
 
 <ParquetStructure />
 
@@ -74,11 +74,13 @@ Here's why this structure matters:
 
 ## Why Parquet Compresses So Well
 
-This is where things get interesting. Parquet files are *dramatically* smaller than the same data in CSV or JSON.
+This is where things get interesting. Parquet files are *dramatically* smaller than the same data in CSV or JSON. On a typical wide fact table stored in S3 with <Tooltip term="A fast, lossless compression codec commonly used with Parquet. Optimized for speed rather than maximum compression ratio." link="https://github.com/google/snappy">Snappy</Tooltip>, it's common to see 5–10x reductions in size.
 
 <FormatSizeChart />
 
-How does Parquet achieve 85–90% compression? Two reasons:
+These numbers aren't hypothetical. For one of our production RDS exports — roughly 80 million rows with a couple dozen columns — the raw CSV dump landed around **1.0–1.2 GB**. Writing the exact same snapshot to Parquet with Snappy landed closer to **130 MB**, which is what you see reflected in the chart above.
+
+How does Parquet achieve 85–90% compression? Three reasons:
 
 ### Homogeneous data compresses better
 
@@ -98,19 +100,23 @@ Before Parquet even applies general-purpose compression (like <Tooltip term="A f
 Parquet applies encoding first (RLE, dictionary, delta), *then* applies byte-level compression (Snappy, Zstd, Gzip) on top. The encoding removes logical redundancy; the compression removes byte-level redundancy. Together, they're incredibly effective.
 </Callout>
 
+### Sorting before you write
+
+All of the above works even better when your data is sorted. If you sort a Parquet file by a high-frequency column (like `country` or `event_date`) before writing it, values that used to be scattered randomly now appear in long runs — which makes RLE, dictionary encoding, and general compression dramatically more effective. Taking a randomized fact table and simply sorting it by date has taken one of my own datasets from ~2× smaller than CSV to well over 10×.
+
 ---
 
 ## The Query Performance Advantage
 
-Compression gets the headlines, but query performance is where Parquet changes how you architect systems. Two features matter most:
+Compression gets the headlines, but query performance is where Parquet changes how you architect systems. In our DSPM case, it turned scans that would have crushed a production RDS instance into lightweight reads against cold storage. Two orthogonal features matter most:
 
-### Column pruning
+### Column pruning (vertical)
 
 If your table has 50 columns and your query uses 3, Parquet reads ~6% of the data. CSV and JSON can't do this — they're row-oriented, so you always read everything.
 
 This isn't just a nice optimization. In cloud environments where you pay per byte scanned (like <Tooltip term="AWS Athena charges $5 per TB of data scanned. Column pruning and Parquet compression directly reduce your bill." link="https://aws.amazon.com/athena/pricing/">Athena</Tooltip>), column pruning directly reduces your cloud bill.
 
-### Predicate pushdown
+### Predicate pushdown (horizontal)
 
 Remember the footer with min/max statistics? Here's where it pays off.
 
@@ -141,11 +147,12 @@ Let's put it all together. Here's how the three formats compare across the dimen
 
 Let's be honest about where Parquet doesn't shine:
 
-- **Not human-readable** — You can't open a Parquet file in a text editor and make sense of it. For debugging and quick inspection, CSV wins. (Though tools like `parquet-tools` and DuckDB's CLI make this less painful.)
+- **Not human-readable** — You can't open a Parquet file in a text editor and make sense of it. For debugging and quick inspection, CSV wins. (Though tools like `parquet-cli` and DuckDB's CLI make this less painful.)
 - **Write overhead** — Building the columnar structure, computing encodings, generating statistics, and writing the footer takes more time than appending a CSV line. For write-heavy, append-only workloads, Parquet adds latency.
 - **Small dataset overhead** — For files under a few megabytes, the metadata overhead can actually make Parquet *larger* than CSV. The format is designed for scale — it shines at gigabytes, not kilobytes.
+  In practice, you also want to avoid **lots of tiny Parquet files**. Reading the footer and opening 1,000 tiny files (10 KB each) is far slower than scanning a handful of well-sized files. Most engines are happiest when individual Parquet files are on the order of 128–512 MB.
 - **Complexity** — CSV is a format anyone can generate with `print()`. Parquet requires a library. For simple scripts and quick data exchange, that's unnecessary friction.
-- **Not great for streaming** — Parquet files are designed to be written once and read many times. If you need to continuously append events, formats like <Tooltip term="A row-oriented binary format with a compact schema definition. Used heavily in streaming pipelines with Apache Kafka." link="https://avro.apache.org/">Avro</Tooltip> or plain JSON lines are a better fit.
+- **Not great for streaming** — Parquet files are designed to be written once and read many times. If you need to continuously append events, it's more common to land them as JSON Lines or Avro on a log stream (Kafka, Kinesis) and then compact them into Parquet using a table format like <Tooltip term="An open table format that adds ACID transactions, schema evolution, and time travel on top of Parquet files." link="https://delta.io/">Delta Lake</Tooltip> or <Tooltip term="An open table format for huge analytic datasets that enables ACID transactions and schema evolution directly on Parquet files." link="https://iceberg.apache.org/">Apache Iceberg</Tooltip>.
 
 ---
 

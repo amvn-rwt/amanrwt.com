@@ -47,7 +47,7 @@ export function ParquetStructure() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-        className="rounded-lg border border-surface0 bg-mantle p-5"
+        className="rounded-lg border border-surface0 bg-mantle p-5 overflow-hidden"
       >
         <div className="mb-4 font-mono text-[11px] uppercase tracking-[0.12em] text-overlay0">
           File layout
@@ -61,8 +61,11 @@ export function ParquetStructure() {
                 type="button"
                 onMouseEnter={() => setActive(s.id)}
                 onClick={() => setActive(s.id)}
-                style={{ marginLeft: s.indent * 20 }}
-                className={`block w-full text-left rounded-md border px-3 py-2 font-mono text-[12px] uppercase tracking-[0.1em] transition-all duration-150 ${
+                style={{
+                  marginLeft: s.indent * 16,
+                  width: `calc(100% - ${s.indent * 16}px)`,
+                }}
+                className={`block text-left rounded-md border px-3 py-2 font-mono text-[12px] uppercase tracking-[0.1em] transition-all duration-150 ${
                   isActive
                     ? "border-peach/60 bg-peach/10 text-peach"
                     : "border-surface1/60 bg-surface0/40 text-overlay1 hover:border-peach/40 hover:bg-peach/5"
