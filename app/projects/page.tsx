@@ -40,15 +40,19 @@ export default function ProjectsPage() {
             className="grid grid-cols-1 md:grid-cols-2"
             style={{ gap: "2px", background: "var(--surface0)" }}
           >
-            {projects.map((project, i) => (
-              <ScrollReveal key={project.slug} delay={i * 0.08} className="h-full">
-                <ProjectCard
-                  project={project}
-                  index={i}
-                  featured={i === 0 && project.featured}
-                />
-              </ScrollReveal>
-            ))}
+            {projects.map((project, i) => {
+              const isFeatured = i === 0 && project.featured;
+
+              return (
+                <ScrollReveal
+                  key={project.slug}
+                  delay={i * 0.08}
+                  className={`h-full ${isFeatured ? "md:col-span-2" : ""}`}
+                >
+                  <ProjectCard project={project} index={i} featured={isFeatured} />
+                </ScrollReveal>
+              );
+            })}
           </div>
         </div>
       </section>
