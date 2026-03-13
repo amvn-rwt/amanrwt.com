@@ -18,6 +18,7 @@ export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const targetRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
 
   const isBlogRoute = pathname.startsWith("/blog");
@@ -25,10 +26,11 @@ export function Navbar() {
   useEffect(() => {
     if (!isBlogRoute) {
       setScrollProgress(0);
+      targetRef.current = 0;
       return;
     }
 
-    const computeProgress = () => {
+    const computeTarget = () => {
       const doc = document.documentElement;
       const scrollTop = window.scrollY || doc.scrollTop;
       const height = doc.scrollHeight - doc.clientHeight;
@@ -37,12 +39,7 @@ export function Navbar() {
     };
 
     const handleScroll = () => {
-      if (rafIdRef.current != null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-      rafIdRef.current = requestAnimationFrame(() => {
-        setScrollProgress(computeProgress());
-      });
+      targetRef.current = computeTarget();
     };
 
     handleScroll();
@@ -58,6 +55,37 @@ export function Navbar() {
       window.removeEventListener("resize", handleScroll);
     };
   }, [isBlogRoute]);
+
+  useEffect(() => {
+    if (!isBlogRoute) {
+      return;
+    }
+
+    const animate = () => {
+      const current = scrollProgress;
+      const target = targetRef.current;
+      const diff = target - current;
+
+      if (Math.abs(diff) < 0.1) {
+        setScrollProgress(target);
+      } else {
+        // ease towards target
+        setScrollProgress(current + diff * 0.15);
+        rafIdRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    if (rafIdRef.current == null) {
+      rafIdRef.current = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (rafIdRef.current != null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, [isBlogRoute, scrollProgress]);
 
   const isActive = (href: string) => {
     if (href.startsWith("/#")) return pathname === "/";
@@ -126,7 +154,7 @@ export function Navbar() {
           <div
             className="h-full rounded-r-full"
             style={{
-              width: `${scrollProgress}%`,
+              width: `${scrollProgress.toFixed(1)}%`,
               background:
                 "linear-gradient(90deg, var(--peach), var(--mauve), var(--blue), var(--teal))",
               transition: "width 220ms cubic-bezier(0.23, 1, 0.32, 1)",

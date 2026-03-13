@@ -53,6 +53,9 @@ export default async function BlogPostPage({ params }: PageProps) {
 
             <div className="flex flex-wrap items-center gap-4 mt-5 mb-10">
               <span className="font-mono text-[12px] text-overlay0">
+                By Aman Rawat
+              </span>
+              <span className="font-mono text-[12px] text-overlay0">
                 {new Date(fm.date).toLocaleDateString("en-US", {
                   month: "long",
                   day: "numeric",
