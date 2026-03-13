@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { ScrambleButton } from "@/components/ScrambleButton";
 
 const links = [
   { href: "/#about", label: "About" },
@@ -44,12 +45,7 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:block">
-          <a
-            href="mailto:aman@amanrwt.com"
-            className="inline-block font-body text-[13px] font-semibold uppercase tracking-[0.06em] px-[26px] py-[10px] bg-peach text-crust rounded-sm transition-shadow duration-300 hover:shadow-[0_0_30px_rgba(250,179,135,0.4)]"
-          >
-            Hire me
-          </a>
+          <ScrambleButton href="mailto:aman@amanrwt.com" text="Let's talk" external showArrow={false} />
         </div>
 
         <button
@@ -78,9 +74,9 @@ export function Navbar() {
           ))}
           <a
             href="mailto:aman@amanrwt.com"
-            className="mt-4 inline-block font-body text-[13px] font-semibold uppercase tracking-[0.06em] px-[26px] py-[10px] bg-peach text-crust"
+            className="mt-4 inline-block font-mono text-[11px] uppercase tracking-[0.14em] px-7 py-3.5 border border-peach text-peach"
           >
-            Hire me
+            Let's talk
           </a>
         </div>
       )}

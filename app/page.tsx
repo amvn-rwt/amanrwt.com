@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Marquee } from "@/components/Marquee";
 import { TerminalWidget } from "@/components/TerminalWidget";
 import { ScrollReveal } from "@/components/ScrollReveal";
+import { ScrambleButton } from "@/components/ScrambleButton";
 import { ArrowUpRight } from "lucide-react";
 
 const HeroCanvas = dynamic(() => import("@/components/HeroCanvas").then((m) => m.HeroCanvas), {
@@ -125,12 +126,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.7, ease }}
               className="flex items-center gap-5 mt-2"
             >
-              <Link
-                href="/projects"
-                className="inline-block font-body text-[13px] font-semibold uppercase tracking-[0.06em] px-7 py-3 bg-peach text-crust transition-shadow duration-300 hover:shadow-[0_0_30px_rgba(250,179,135,0.4)]"
-              >
-                View my work →
-              </Link>
+              <ScrambleButton href="/projects" text="View my work" />
             </motion.div>
           </div>
 
