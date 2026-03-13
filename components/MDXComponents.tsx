@@ -1,6 +1,18 @@
 import type { MDXComponents as MDXComponentsType } from "mdx/types";
+import { Tooltip } from "./mdx/Tooltip";
+import { Callout } from "./mdx/Callout";
+import { ColumnVsRow } from "./mdx/ColumnVsRow";
+import { ParquetStructure } from "./mdx/ParquetStructure";
+import { FormatComparison } from "./mdx/FormatComparison";
+import { FormatSizeChart } from "./mdx/FormatSizeChart";
 
 export const mdxComponents: MDXComponentsType = {
+  Tooltip: Tooltip as unknown as React.ComponentType,
+  Callout: Callout as unknown as React.ComponentType,
+  ColumnVsRow: ColumnVsRow as unknown as React.ComponentType,
+  ParquetStructure: ParquetStructure as unknown as React.ComponentType,
+  FormatComparison: FormatComparison as unknown as React.ComponentType,
+  FormatSizeChart: FormatSizeChart as unknown as React.ComponentType,
   h1: (props) => (
     <h1
       className="font-display font-bold text-text tracking-[-0.03em] mt-12 mb-4"
