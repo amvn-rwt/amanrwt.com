@@ -19,7 +19,6 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const targetRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
 
   const isBlogRoute = pathname.startsWith("/blog");
 
@@ -47,10 +46,6 @@ export function Navbar() {
     window.addEventListener("resize", handleScroll);
 
     return () => {
-      if (rafIdRef.current != null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
     };
@@ -61,31 +56,28 @@ export function Navbar() {
       return;
     }
 
-    const animate = () => {
-      const current = scrollProgress;
-      const target = targetRef.current;
-      const diff = target - current;
+    let rafId: number | null = null;
 
-      if (Math.abs(diff) < 0.1) {
-        setScrollProgress(target);
-      } else {
-        // ease towards target
-        setScrollProgress(current + diff * 0.15);
-        rafIdRef.current = requestAnimationFrame(animate);
-      }
+    const animate = () => {
+      setScrollProgress((current) => {
+        const target = targetRef.current;
+        const diff = target - current;
+        if (Math.abs(diff) < 0.1) {
+          return target;
+        }
+        return current + diff * 0.15;
+      });
+      rafId = requestAnimationFrame(animate);
     };
 
-    if (rafIdRef.current == null) {
-      rafIdRef.current = requestAnimationFrame(animate);
-    }
+    rafId = requestAnimationFrame(animate);
 
     return () => {
-      if (rafIdRef.current != null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
+      if (rafId != null) {
+        cancelAnimationFrame(rafId);
       }
     };
-  }, [isBlogRoute, scrollProgress]);
+  }, [isBlogRoute]);
 
   const isActive = (href: string) => {
     if (href.startsWith("/#")) return pathname === "/";
