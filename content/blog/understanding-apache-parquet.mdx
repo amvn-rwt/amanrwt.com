@@ -1,183 +1,157 @@
 ---
 title: "Understanding Apache Parquet: The File Format Behind Modern Data Engineering"
 slug: "understanding-apache-parquet"
-description: "A visual deep-dive into Apache Parquet: why it exists, how it stores data, and why it matters for data engineers"
+description: "A deep-dive into Apache Parquet: why it exists, how columnar storage works, compression internals, predicate pushdown, bloom filters, and when to use it over CSV or JSON."
 date: "2026-03-13"
 readingTime: "12 min read"
 tags: ["Data Engineering", "Parquet", "Cloud"]
 ---
 
-## It Started with a Customer Who Said No
+## It started with a customer who said no
 
-I was building a <Tooltip term="Data Security Posture Management: tools that discover and classify sensitive data across your infrastructure." link="https://www.gartner.com/en/information-technology/glossary/data-security-posture-management">DSPM</Tooltip> product. One of our core features was scanning customer databases for sensitive data: PII, credentials, financial records. The kind of stuff that keeps security teams up at night.
+I was building a <Tooltip term="Data Security Posture Management: tools that discover and classify sensitive data across your infrastructure." link="https://www.gartner.com/en/information-technology/glossary/data-security-posture-management">DSPM</Tooltip> product. We scanned customer databases for sensitive data (PII, credentials, financial records) and the original plan was simple: connect to the customer's <Tooltip term="Amazon Relational Database Service: managed PostgreSQL, MySQL, Aurora, etc." link="https://aws.amazon.com/rds/">RDS</Tooltip> instance, run classification queries, report findings.
 
-The architecture was straightforward. Connect to the customer's <Tooltip term="Amazon Relational Database Service: managed PostgreSQL, MySQL, Aurora, etc." link="https://aws.amazon.com/rds/">RDS</Tooltip> instance, run classification queries, report findings. Simple enough.
-
-Except customers didn't want us anywhere near their production databases.
+Customers hated this.
 
 <Callout type="story" title="The trust problem">
-Think about it from their perspective. They're paying for a *security* product, and the first thing it does is ask for direct access to their production database? The database with customer records, payment info, health data? Even with read-only credentials, the risk calculus doesn't work. One bad query could saturate their connection pool. One misconfigured timeout could cascade into an outage.
+Think about it from their side. They're paying for a *security* product, and the first thing it asks for is direct access to their production database? The one with customer records, payment info, health data? Even read-only credentials didn't make them comfortable. One bad query could saturate their connection pool. One misconfigured timeout could cascade into an outage. They weren't being paranoid. They were being reasonable.
 </Callout>
 
-We needed a way to get the data without touching the database. So we had the customer take a snapshot of their RDS instance, export it to <Tooltip term="Amazon Simple Storage Service: object storage, the standard for cloud data lakes." link="https://aws.amazon.com/s3/">S3</Tooltip>, and send it to us as Parquet files.
+So we changed the approach. The customer takes an RDS snapshot (zero impact on prod), exports it to <Tooltip term="Amazon Simple Storage Service: object storage, the standard for cloud data lakes." link="https://aws.amazon.com/s3/">S3</Tooltip>, and we pick it up as Parquet files. No database access needed.
 
-That decision changed how I think about data storage. Here's everything I learned.
-
----
-
-## What is Apache Parquet?
-
-<Tooltip term="Open-source, column-oriented file format. Created by Twitter and Cloudera in 2013, now an Apache project." link="https://parquet.apache.org/">Apache Parquet</Tooltip> is a file format. That's it. Not a database, not a query engine, just a way to store tabular data on disk.
-
-But it's a clever one.
-
-CSV and JSON store data row by row. Parquet stores it column by column. That one choice drives the compression, the speed, and why it's the default in most data stacks now.
-
-Twitter and <Tooltip term="Cloudera co-created Parquet; big in the Hadoop world." link="https://www.cloudera.com/">Cloudera</Tooltip> built it in 2013. The nested model comes from Google's <Tooltip term="2010 paper on columnar storage; Parquet uses a lot of its ideas." link="https://research.google/pubs/dremel-interactive-analysis-of-web-scale-datasets/">Dremel paper</Tooltip>, and the columnar layout builds on older work like <Tooltip term="Research column-store that influenced modern analytics." link="https://db.csail.mit.edu/projects/cstore/">C-Store</Tooltip>. They gave it to <Tooltip term="Apache hosts Parquet and keeps it vendor-neutral." link="https://www.apache.org/">Apache</Tooltip>, and now pretty much every data tool supports it.
-
-Spark, <Tooltip term="Query S3 with SQL, no servers." link="https://aws.amazon.com/athena/">Athena</Tooltip>, <Tooltip term="Google's warehouse, reads Parquet natively." link="https://cloud.google.com/bigquery">BigQuery</Tooltip>, <Tooltip term="Fast in-process DB, great at Parquet." link="https://duckdb.org/">DuckDB</Tooltip>, <Tooltip term="pandas.read_parquet() is one of the fastest ways to load data." link="https://pandas.pydata.org/">Pandas</Tooltip>. Everyone speaks Parquet.
+I didn't know much about Parquet before this. I knew it was "the columnar format" and that data engineers liked it. Working with it in production taught me why.
 
 ---
 
-## Row vs Column: The Core Idea
+## What Parquet actually is
 
-Once you get this, the rest of Parquet clicks. The big difference is how the data is laid out.
+<Tooltip term="Open-source, column-oriented file format. Created by Twitter and Cloudera in 2013, now an Apache project." link="https://parquet.apache.org/">Apache Parquet</Tooltip> is a file format. Not a database, not a query engine, just a way to lay out tabular data on disk. The key thing is that it stores data column by column instead of row by row. That sounds like a small difference but it affects everything: how well the data compresses, how fast you can query it, and why basically every data tool defaults to it now.
+
+Twitter and <Tooltip term="Cloudera co-created Parquet; big in the Hadoop world." link="https://www.cloudera.com/">Cloudera</Tooltip> built it in 2013. A lot of the design comes from Google's <Tooltip term="2010 paper on columnar storage; Parquet uses a lot of its ideas." link="https://research.google/pubs/dremel-interactive-analysis-of-web-scale-datasets/">Dremel paper</Tooltip> and earlier research like <Tooltip term="Research column-store that influenced modern analytics." link="https://db.csail.mit.edu/projects/cstore/">C-Store</Tooltip>. They gave it to <Tooltip term="Apache hosts Parquet and keeps it vendor-neutral." link="https://www.apache.org/">Apache</Tooltip>, and at this point Spark, <Tooltip term="Query S3 with SQL, no servers." link="https://aws.amazon.com/athena/">Athena</Tooltip>, <Tooltip term="Google's warehouse, reads Parquet natively." link="https://cloud.google.com/bigquery">BigQuery</Tooltip>, <Tooltip term="Fast in-process DB, great at Parquet." link="https://duckdb.org/">DuckDB</Tooltip>, <Tooltip term="pandas.read_parquet() is one of the fastest ways to load data." link="https://pandas.pydata.org/">Pandas</Tooltip>... pretty much everything can read it natively.
+
+---
+
+## Row vs column storage
 
 Here's a table with four users:
 
 <ColumnVsRow />
 
-In a row-oriented format like CSV, each record lives together. Want Alice's full row? It's all in one place, so it's fast. That's why <Tooltip term="OLTP: lots of small reads/writes, e.g. web apps and APIs." link="https://en.wikipedia.org/wiki/Online_transaction_processing">OLTP</Tooltip> databases (Postgres, MySQL) use row storage. They're built for "give me user #42."
+In CSV or any row-oriented format, each record is stored together. If you want Alice's full profile, that's fast because everything's in one place. That's why <Tooltip term="OLTP: lots of small reads/writes, e.g. web apps and APIs." link="https://en.wikipedia.org/wiki/Online_transaction_processing">OLTP</Tooltip> databases like Postgres and MySQL store data this way. They're optimized for "give me user #42."
 
-But what if you want the average age of everyone? Then the engine has to read every row, including Name and City and everything else it doesn't need. Four rows, fine. Four hundred million with 50 columns? That's a lot of wasted I/O.
+But say you want the average age across all users. Now the engine has to read every single row, including Name, City, and every other column it doesn't care about. With 4 rows, who cares. With 400 million rows and 50 columns, you're reading maybe 50x more data than you need.
 
-Column-oriented flips it. All ages sit next to each other. So `SELECT AVG(age)` only reads the age column; Name and City never leave disk. That's why <Tooltip term="OLAP: big scans, aggregations, dashboards, BI." link="https://en.wikipedia.org/wiki/Online_analytical_processing">OLAP</Tooltip> and data lakes use columnar formats like Parquet. The catch: Parquet is great for scanning lots of rows and bad at "give me this one row by ID," because that row is spread across many column chunks.
+Parquet flips it. All the ages are stored together, all the names together, all the cities together. `SELECT AVG(age)` reads just the age column. Name and City stay on disk untouched. That's why <Tooltip term="OLAP: big scans, aggregations, dashboards, BI." link="https://en.wikipedia.org/wiki/Online_analytical_processing">OLAP</Tooltip> systems and data lakes use columnar formats.
 
-On wide tables with hundreds of columns, column pruning alone can cut I/O by 95% or more. The difference is huge.
+The tradeoff is real though. If you need to fetch a single row by ID, Parquet is terrible at it, because that one row is scattered across dozens of column chunks. It's not a general-purpose format. It's built for scans.
 
 ---
 
-## Anatomy of a Parquet File
+## Anatomy of a Parquet file
 
-When I first opened one of those RDS snapshot exports in a Parquet viewer, I was surprised how structured the file layout is. It's not just a blob of column data. There's a real layout inside that makes the performance tricks possible. Hover over each layer below to see what it does:
+When I first opened one of those RDS exports in a hex editor (okay, a Parquet viewer, I'm not that hardcore), I expected it to be a blob of compressed column data. It's actually pretty structured. There are distinct layers, and each one exists for a reason:
 
 <ParquetStructure />
 
-Here's why it matters:
+The short version:
 
-- **Row groups** let engines parallelize. Each one is independent, so different threads or machines can work on different groups.
-- **Column chunks** are why <Tooltip term="Only read the columns your query uses." link="https://parquet.apache.org/docs/concepts/">column pruning</Tooltip> works. Your query only touches the columns it needs.
-- **Pages** are the compression unit. Small enough to decompress fast, big enough to compress well.
-- **The footer** is the index. Written last, read first. Engines use it to see which row groups and chunks they need and skip the rest.
+- **Row groups** are horizontal slices, usually around 128 MB of uncompressed data each. They're independent of each other, so engines can process them in parallel across threads or machines.
+- **Column chunks** - within each row group, data is split by column. This is what makes <Tooltip term="Only read the columns your query uses." link="https://parquet.apache.org/docs/concepts/">column pruning</Tooltip> work. If your query only needs 3 out of 50 columns, the other 47 never get read.
+- **Pages** are the actual compression unit, usually around 1 MB. Small enough to decompress quickly, large enough to compress well.
+- **The footer** sits at the end of the file but gets read first. It has the full schema, the locations of every row group and column chunk, and min/max statistics per column. This is what lets engines decide what to skip before reading any actual data.
 
 ---
 
-## Why Parquet Compresses So Well
+## Why the files are so small
 
-This is where it gets good. Parquet files are way smaller than the same data in CSV or JSON. On a typical wide fact table in S3 with <Tooltip term="Fast compression codec, common with Parquet." link="https://github.com/google/snappy">Snappy</Tooltip>, 5 to 10x smaller is normal.
+The compression ratios surprised me when I first saw them. Our production dataset (roughly 80 million rows, a couple dozen columns) was about 1.0 to 1.2 GB as CSV. As Parquet with <Tooltip term="Fast compression codec, common with Parquet." link="https://github.com/google/snappy">Snappy</Tooltip> compression, it was around 130 MB.
 
 <FormatSizeChart />
 
-Those numbers are real. One of our production RDS exports had roughly 80 million rows and a couple dozen columns. The CSV dump was about 1.0 to 1.2 GB. The same snapshot as Parquet with Snappy was around 130 MB. That's what the chart above shows.
+That's not unusual. On typical wide tables, 5-10x smaller than CSV is normal. Here's why.
 
-How does Parquet get there? A few reasons.
+### Columns are homogeneous
 
-### Same-type data compresses better
+In CSV, a single row mixes strings, integers, dates, floats, so the compressor doesn't have much to work with. In Parquet, each column chunk is a single type. A column of country names is just strings, and often the same few dozen values repeated millions of times. That's much easier to compress.
 
-In CSV a single row mixes strings, integers, dates, floats, so compression doesn't have much to work with. In Parquet each column chunk is one type. A column of integers is just integers; a column of country names is just strings, often the same few dozen repeated millions of times. Compression loves that.
+### Encoding happens before compression
 
-### Smart encoding before compression
+Parquet doesn't just throw Snappy or Zstd at the raw bytes. It first applies logical encodings that shrink the data:
 
-Before Parquet hits it with Snappy or Zstd, it applies encodings that shrink the data first:
-
-- **<Tooltip term="Same value repeated becomes (value, count)." link="https://en.wikipedia.org/wiki/Run-length_encoding">RLE</Tooltip>.** If a column has long runs of the same value (e.g. country sorted by country), "USA, USA, USA..." becomes something like (USA, 10000).
-- **<Tooltip term="Store each unique value once, reference by small ID." link="https://en.wikipedia.org/wiki/Dictionary_coder">Dictionary encoding</Tooltip>.** Low-cardinality columns get a dictionary. "United States" stored once, then a tiny int per row.
-- **<Tooltip term="Store deltas between consecutive values; great for timestamps and IDs." link="https://en.wikipedia.org/wiki/Delta_encoding">Delta encoding</Tooltip>.** For sorted or sequential data, Parquet stores the difference between consecutive values. A column of timestamps one second apart becomes a column of 1s.
+- **<Tooltip term="Same value repeated becomes (value, count)." link="https://en.wikipedia.org/wiki/Run-length_encoding">RLE</Tooltip>** - runs of the same value get collapsed. "USA, USA, USA..." a million times becomes (USA, 1000000). Sorted data makes this absurdly effective.
+- **<Tooltip term="Store each unique value once, reference by small ID." link="https://en.wikipedia.org/wiki/Dictionary_coder">Dictionary encoding</Tooltip>** - low-cardinality columns (status codes, country names) get a lookup table. The string "United States" is stored once, and each row just has a tiny integer pointing to it.
+- **<Tooltip term="Store deltas between consecutive values; great for timestamps and IDs." link="https://en.wikipedia.org/wiki/Delta_encoding">Delta encoding</Tooltip>** - for sequential data like timestamps or auto-incrementing IDs, Parquet stores the difference between consecutive values. A column of timestamps one second apart becomes a column of 1s.
 
 <Callout type="tip" title="Encoding then compression">
-Parquet does encoding first (RLE, dictionary, delta), then byte-level compression (Snappy, Zstd, Gzip) on top. Encoding kills logical redundancy; compression kills byte-level redundancy. Together they work really well.
+Parquet does encoding first (RLE, dictionary, delta), then byte-level compression (Snappy, Zstd, Gzip) on top. Encoding removes logical redundancy, compression removes byte-level redundancy. Stacking them is why the ratios get so good.
 </Callout>
 
-### Sorting before you write
+### Sort order matters more than you'd think
 
-Sort by a column that repeats a lot (country, event_date) before writing, and values that were scattered end up in long runs. RLE and the rest go nuts. I had one randomized fact table that was only about 2x smaller than CSV; after sorting by date it went to well over 10x.
+This one bit me. I had a fact table that was only about 2x smaller than CSV as Parquet. Pretty disappointing. Then I sorted it by date before writing. Suddenly it was over 10x smaller. Sorting groups similar values together, which means longer runs for RLE and better patterns for the compressor. If you're writing Parquet and not thinking about sort order, you're leaving a lot on the table.
 
 ---
 
-## The Query Performance Advantage
+## Query performance
 
-Compression gets the headlines. But query performance is where Parquet actually changes how you build things. In our DSPM case, scans that would've killed a production RDS became lightweight reads on cold storage.
+The compression numbers are nice, but honestly, query performance is where Parquet changed how we built things. In our DSPM pipeline, scans that would've hammered a production RDS instance became lightweight reads on cold S3 storage.
 
 ### Column pruning
 
-You only read the columns you need. If your table has 50 columns and your query uses 3, Parquet reads about 6% of the data. CSV and JSON can't do that; they're row-oriented. With <Tooltip term="Athena charges per TB scanned; pruning and Parquet cut the bill." link="https://aws.amazon.com/athena/pricing/">Athena</Tooltip> and similar you pay per byte scanned, so column pruning cuts your bill.
+If your table has 50 columns and your query touches 3, Parquet reads roughly 6% of the file. CSV can't do this. It's row-oriented, so you read everything. With <Tooltip term="Athena charges per TB scanned; pruning and Parquet cut the bill." link="https://aws.amazon.com/athena/pricing/">Athena</Tooltip> (which charges per byte scanned), this directly cuts your bill.
 
 ### Predicate pushdown
 
-Remember the footer with min/max statistics? That's where it pays off.
+This is the footer paying for itself.
 
 <Callout type="info" title="How predicate pushdown works">
-You run something like `SELECT * FROM users WHERE age > 50`. The footer has min and max age per row group. If a row group has min=18 and max=35, the engine skips it. No bytes read. On big datasets that can wipe out most of the work before any data is decompressed.
+Say you run `SELECT * FROM users WHERE age > 50`. The footer stores min and max age for each row group. If a row group has min=18 and max=35, the engine skips it entirely. Zero bytes read. On large datasets this can eliminate most of the work before any data is even decompressed.
 </Callout>
+
+### Row group sizing
+
+The default 128 MB row group size works fine for most cases, but it's worth understanding the tradeoff. Bigger row groups = better compression and less metadata overhead, but coarser predicate pushdown. If only one row in a 128 MB group matches your filter, you still read the whole group. For very wide tables or highly selective queries, I've seen 32 MB row groups work better. More chances to skip, more parallelism, at the cost of slightly worse compression and more footer entries. There's no universal answer here.
+
+### Bloom filters
+
+Min/max statistics in the footer help with range predicates (`age > 50`), but they're useless for equality checks on high-cardinality columns. `WHERE user_id = 12345` when the min is 1 and the max is 10 million? Can't skip anything.
+
+That's what bloom filters are for. They're optional per-column metadata that can definitively say "this value is NOT in this row group." They cost extra space and write time, which is why they're not on by default in most writers. Worth enabling on columns you frequently filter by equality (IDs, keys, that kind of thing). Not worth it on every column.
+
+---
+
+## Schema evolution (and its gotchas)
+
+The happy path is simple: add a new column to your schema, and old Parquet files still work. Readers just see null for the column that didn't exist yet. This is genuinely useful and one of the reasons Parquet beats CSV for any serious pipeline.
+
+The gotchas are less obvious. **Renaming** a column isn't a first-class operation. The schema stores column names as strings, so if you rename `user_name` to `username` in your application, old files still have `user_name` and you end up with two columns unless you rewrite everything. **Type changes** (int to long, or string to int) aren't safe. Some readers will coerce, others will just fail. **Adding a required (non-optional) column** breaks old readers that don't know about it.
+
+In practice: always add columns as optional, avoid renames unless you're doing a one-time migration with a full rewrite, and treat type changes as a new dataset.
 
 ---
 
 ## Parquet vs CSV vs JSON
 
-How the three stack up on the stuff that actually matters:
+Here's how the three compare on the stuff that actually matters when you're picking a format:
 
 <FormatComparison />
 
 ---
 
-## Advantages
+## Should you use it?
 
-- **Compression.** Way smaller files (usually 85 to 90% smaller than CSV). Less storage, faster transfers.
-- **Query performance.** Engines only read the columns and row groups they need. Queries that took minutes on CSV can finish in seconds.
-- **Self-describing schema.** The schema lives in the file footer. No separate schema files, no guessing types.
-- **Schema evolution.** You can add columns later without breaking old readers; they just get null for the new stuff.
-- **Ecosystem.** Every major tool reads Parquet. It's the default for <Tooltip term="Central store for raw/processed data, often on S3." link="https://en.wikipedia.org/wiki/Data_lake">data lakes</Tooltip>, <Tooltip term="Data lake plus warehouse-style reliability (Delta, Iceberg, etc.)." link="https://www.databricks.com/glossary/data-lakehouse">lakehouses</Tooltip>, and most <Tooltip term="Extract, transform, load pipelines." link="https://en.wikipedia.org/wiki/Extract,_transform,_load">ETL</Tooltip> pipelines.
-- **Language agnostic.** Python, Java, Go, Rust, C++, JS. Everyone has a reader.
+<ParquetProsCons />
 
-## Disadvantages
+The short version: if your data is big (hundreds of MB+), the workload is analytical, and you're storing it in S3 or GCS, Parquet is probably the right call. It's the default for <Tooltip term="Central store for raw/processed data, often on S3." link="https://en.wikipedia.org/wiki/Data_lake">data lakes</Tooltip>, <Tooltip term="Data lake plus warehouse-style reliability (Delta, Iceberg, etc.)." link="https://www.databricks.com/glossary/data-lakehouse">lakehouses</Tooltip>, and most <Tooltip term="Extract, transform, load pipelines." link="https://en.wikipedia.org/wiki/Extract,_transform,_load">ETL</Tooltip> pipelines for a reason.
 
-- **Not human-readable.** You can't open a Parquet file in a text editor. For quick inspection, CSV wins. (parquet-cli and DuckDB's CLI help.)
-- **Write overhead.** Writes are heavier than appending a CSV line. For write-heavy append workloads you pay in latency.
-- **Small files.** Under a few MB the metadata can make Parquet bigger than CSV. The format is built for scale. Avoid thousands of tiny Parquet files (e.g. 10 KB each); aim for well-sized ones (128 to 512 MB) when you can.
-- **Complexity.** Parquet needs a library. For one-off scripts or quick handoffs, CSV is simpler.
-- **Streaming.** Parquet is write-once, read-many. For continuous append you'd land events as JSON Lines or Avro on Kafka/Kinesis, then compact into Parquet with <Tooltip term="Table format on Parquet: ACID, schema evolution, time travel." link="https://delta.io/">Delta Lake</Tooltip> or <Tooltip term="Table format for huge analytics on Parquet." link="https://iceberg.apache.org/">Iceberg</Tooltip>.
+If your data is small, someone needs to read it in a text editor, or you're streaming/appending constantly, stick with CSV or JSON. Parquet is write-once, read-many. For continuous append, land events as JSON Lines or Avro, then compact to Parquet periodically with something like <Tooltip term="Table format on Parquet: ACID, schema evolution, time travel." link="https://delta.io/">Delta Lake</Tooltip> or <Tooltip term="Table format for huge analytics on Parquet." link="https://iceberg.apache.org/">Iceberg</Tooltip>.
 
 ---
 
-## When to use Parquet
+## Back to the DSPM problem
 
-**Reach for Parquet when:**
+The customer who wouldn't let us touch their database. Parquet turned out to be a good fit for that. They snapshot their RDS, export to S3 as Parquet, we pick it up. They never give us database credentials. Prod is never at risk. And on our side, we only read the columns we actually need to classify, instead of pulling every column from a 500-column table. The files are a fraction of the CSV size, so storage and transfer costs stay reasonable.
 
-- The dataset is large (hundreds of MB to TBs)
-- The workload is analytical (aggregations, scans, dashboards)
-- You're putting data in S3 or GCS
-- You want to <Tooltip term="Query files in place with SQL, no DB ingest." link="https://en.wikipedia.org/wiki/Data_lake">query in place</Tooltip>
-- Schema matters to you
-- You're building a <Tooltip term="Central store for analytics and reporting." link="https://en.wikipedia.org/wiki/Data_warehouse">data warehouse</Tooltip> or lake
+I want to be honest though, this wasn't the only option. They could've sent us CSVs, or we could've set up a read replica. Parquet fit because we were doing bulk column scans, we cared about file size, and the export tooling already supported it. It wasn't some revelation. It was the right tool for a specific problem.
 
-**Stick with CSV or JSON when:**
-
-- The data is small (few MB)
-- Humans need to read or edit the file
-- You're streaming or appending constantly
-- The consumer is a simple script that doesn't need columnar speed
-- Someone needs to open it in Excel
-
----
-
-## Coming full circle
-
-That DSPM problem: the customer who wouldn't let us near their production database.
-
-Parquet was the right middle ground. They take an RDS snapshot (no impact on prod), export to S3 as Parquet, we scan it on our side.
-
-Customer never gives us DB access. Production stays untouched. They control what leaves their environment. We get data that's compressed, typed, and column-oriented, so we can classify by reading only the columns we need instead of full-table scanning a 500-column DB. And the cloud bill stays sane because we're storing and moving a fraction of the raw size.
-
-What started as a trust problem turned into an architecture win. How you store data shapes what you can do with it.
-
-Parquet isn't the answer for everything. But for analytical workloads, data lakes, and big volumes of structured data, it's hard to beat. Once the columnar model clicks, you start seeing places to use it everywhere.
+That's kind of the thing with Parquet. It's not magic. It's a file format that happens to be really well-designed for analytical workloads. If you're doing that kind of work, it's hard to beat. If you're not, don't force it.

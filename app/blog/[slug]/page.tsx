@@ -21,9 +21,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const { frontmatter } = await getPostBySlug("blog", slug);
   const fm = frontmatter as unknown as BlogFrontmatter;
+  const url = `https://amanrwt.com/blog/${fm.slug}`;
+
   return {
     title: fm.title,
     description: fm.description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: fm.title,
+      description: fm.description,
+      url,
+      siteName: "Aman Rawat",
+      type: "article",
+      publishedTime: fm.date,
+      authors: ["Aman Rawat"],
+      tags: fm.tags,
+      locale: "en_US",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fm.title,
+      description: fm.description,
+    },
   };
 }
 
@@ -32,8 +51,25 @@ export default async function BlogPostPage({ params }: PageProps) {
   const { frontmatter, content } = await getPostBySlug("blog", slug);
   const fm = frontmatter as unknown as BlogFrontmatter;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: fm.title,
+    description: fm.description,
+    datePublished: fm.date,
+    author: { "@type": "Person", name: "Aman Rawat", url: "https://amanrwt.com" },
+    publisher: { "@type": "Person", name: "Aman Rawat", url: "https://amanrwt.com" },
+    url: `https://amanrwt.com/blog/${fm.slug}`,
+    keywords: fm.tags,
+    mainEntityOfPage: { "@type": "WebPage", "@id": `https://amanrwt.com/blog/${fm.slug}` },
+  };
+
   return (
     <div className="pt-[70px]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <article className="py-[110px]">
         <div className="max-w-[800px] mx-auto px-6 lg:px-14">
           <ScrollReveal>

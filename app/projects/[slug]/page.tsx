@@ -21,9 +21,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const { frontmatter } = await getPostBySlug("projects", slug);
   const fm = frontmatter as unknown as ProjectFrontmatter;
+  const url = `https://amanrwt.com/projects/${fm.slug}`;
+
   return {
     title: fm.title,
     description: fm.description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: fm.title,
+      description: fm.description,
+      url,
+      siteName: "Aman Rawat",
+      type: "article",
+      publishedTime: fm.date,
+      authors: ["Aman Rawat"],
+      tags: fm.tags,
+      locale: "en_US",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fm.title,
+      description: fm.description,
+    },
   };
 }
 

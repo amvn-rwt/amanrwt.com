@@ -106,7 +106,7 @@ export function ColumnVsRow() {
         <p className="mt-4 text-[12px] text-overlay1 leading-relaxed">
           Each <strong className="text-subtext1">column</strong> is stored
           contiguously. Scanning &ldquo;all ages&rdquo; reads only the Age
-          block &mdash; skipping Name and City entirely.
+          block, skipping Name and City entirely.
         </p>
       </motion.div>
     </div>
